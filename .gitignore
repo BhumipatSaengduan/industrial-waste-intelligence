@@ -213,3 +213,6 @@ data/processed/
 *.jpeg
 *.png
 *.zip
+
+# MLflow
+mlruns/
