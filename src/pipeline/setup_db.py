@@ -5,7 +5,7 @@ import os
 DB_CONFIG = {
     'host'    : '34.104.146.13',  
     'database': 'waste_intelligence',
-    'user'    : 'waste_user',
+    'user'    : 'postgres',
     'password': '12345678',   
     'port'    : 5432
 }
