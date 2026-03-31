@@ -27,16 +27,14 @@ def run_inference(predictor, image_path):
         image_path: path to input image
     Returns:
         instances: raw Detectron2 instances
-        composition: dict of {class_name: area_percentage}
+        composition: dict of {class_name: area_percentage of detected waste}
         annotated_img: numpy array with masks drawn
     """
     img = cv2.imread(image_path)
     if img is None:
         raise ValueError(f"Cannot read image: {image_path}")
 
-    img_rgb  = img[:, :, ::-1]
-    h, w     = img.shape[:2]
-    total_px = h * w
+    img_rgb = img[:, :, ::-1]
 
     outputs   = predictor(img)
     instances = outputs["instances"].to("cpu")
@@ -50,10 +48,15 @@ def run_inference(predictor, image_path):
             if cls_id < len(WASTE_CLASSES):
                 class_areas[WASTE_CLASSES[cls_id]] += mask.sum()
 
-    composition = {
-        cls: round(float(area) / total_px * 100, 2)
-        for cls, area in class_areas.items()
-    }
+    # Calculate proportion relative to total detected waste area
+    total_waste_px = sum(class_areas.values())
+    if total_waste_px > 0:
+        composition = {
+            cls: round(float(area) / total_waste_px * 100, 2)
+            for cls, area in class_areas.items()
+        }
+    else:
+        composition = {cls: 0.0 for cls in WASTE_CLASSES}
 
     metadata  = MetadataCatalog.get("waste_train")
     v         = Visualizer(img_rgb, metadata=metadata,
