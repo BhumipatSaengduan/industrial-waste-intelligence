@@ -1,12 +1,16 @@
 import psycopg2
+import os
 from contextlib import contextmanager
+from dotenv import load_dotenv
+
+load_dotenv()
 
 DB_CONFIG = {
-    'host'    : '34.104.146.13',
-    'database': 'waste_intelligence',
-    'user'    : 'postgres',
-    'password': '12345678',
-    'port'    : 5432
+    'host'    : os.getenv('DB_HOST', '34.104.146.13'),
+    'database': os.getenv('DB_NAME', 'waste_intelligence'),
+    'user'    : os.getenv('DB_USER', 'postgres'),
+    'password': os.getenv('DB_PASSWORD', ''),
+    'port'    : int(os.getenv('DB_PORT', '5432'))
 }
 
 @contextmanager
