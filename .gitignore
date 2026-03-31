@@ -219,3 +219,9 @@ mlruns/
 
 # ChromaDB
 data/chromadb/
+
+# Internship docs
+internship-new-project-docs/
+
+# Project docs
+folder_structure.txt
