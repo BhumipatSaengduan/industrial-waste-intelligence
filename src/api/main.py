@@ -1,6 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
+import os
+import tempfile
+import base64
+import cv2
 
 from .models import (
     HealthResponse, CompositionResponse,
@@ -22,10 +26,25 @@ app.add_middleware(
     allow_headers=['*']
 )
 
+# Load model at startup
+MODEL_PATH = os.getenv('MODEL_PATH', 'models/final/waste_maskrcnn_torchvision.pth')
+
+try:
+    from src.vision.inference import load_predictor, run_inference
+    if os.path.exists(MODEL_PATH):
+        model_tuple = load_predictor(MODEL_PATH, score_thresh=0.3)
+        MODEL_READY = True
+        print(f'Model loaded from {MODEL_PATH}')
+    else:
+        MODEL_READY = False
+        print(f'Model not found at {MODEL_PATH} — /analyze will return 503')
+except Exception as e:
+    MODEL_READY = False
+    print(f'Model load failed: {e}')
+
 # Health Check
 @app.get('/', response_model=HealthResponse)
 async def root():
-    """Root health check — verify API and database connection."""
     try:
         query_db('SELECT 1')
         db_status = 'connected'
@@ -35,25 +54,56 @@ async def root():
     return HealthResponse(
         status  = 'ok',
         version = '1.0.0',
-        model   = 'Mask R-CNN ResNet-50 FPN (mAP@0.5: 48.95%)',
+        model   = f'Mask R-CNN ResNet-50 FPN (torchvision) — ready: {MODEL_READY}',
         database= db_status
     )
 
 @app.get('/health')
 async def health():
-    """Lightweight health check for monitoring."""
     return {
-        'status'   : 'ok',
-        'timestamp': datetime.now().isoformat()
+        'status'     : 'ok',
+        'model_ready': MODEL_READY,
+        'timestamp'  : datetime.now().isoformat()
+    }
+
+# POST /analyze
+@app.post('/analyze')
+async def analyze(file: UploadFile = File(...)):
+    """
+    Upload waste image and return segmentation results.
+    composition sums to 100% of detected waste area.
+    annotated_image is base64-encoded JPG with colored masks.
+    """
+    if not MODEL_READY:
+        raise HTTPException(
+            status_code=503,
+            detail='Model not loaded — check MODEL_PATH in .env'
+        )
+
+    if not file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+        raise HTTPException(status_code=400, detail='Only JPG and PNG supported')
+
+    with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+
+    instances, composition, annotated_img = run_inference(model_tuple, tmp_path)
+    os.unlink(tmp_path)
+
+    _, buffer  = cv2.imencode('.jpg', cv2.cvtColor(annotated_img, cv2.COLOR_RGB2BGR))
+    img_base64 = base64.b64encode(buffer).decode('utf-8')
+
+    return {
+        'filename'           : file.filename,
+        'instances'          : instances['count'],
+        'composition'        : composition,
+        'total_area_detected': round(sum(composition.values()), 2),
+        'annotated_image'    : img_base64
     }
 
 # GET /trend
 @app.get('/trend')
 async def get_trend(class_name: str = None, limit: int = 30):
-    """
-    Get daily waste composition trends from Cloud SQL.
-    Optional filter by class_name.
-    """
     if class_name:
         rows = query_db("""
             SELECT date, class_name, annotation_count,
@@ -107,10 +157,6 @@ async def get_forecast(class_name: str = None):
 # GET /anomaly
 @app.get('/anomaly')
 async def get_anomaly():
-    """
-    Get anomaly detection results from Cloud SQL.
-    Returns all flagged anomalous days with explanations.
-    """
     rows = query_db("""
         SELECT date, is_anomaly, anomaly_score,
                annotation_count, explanation
@@ -128,10 +174,6 @@ async def get_anomaly():
 # GET /insights
 @app.get('/insights')
 async def get_insights(insight_type: str = None):
-    """
-    Get LLM-generated insights from Cloud SQL.
-    Optional filter by insight_type: weekly_report or anomaly_explanation.
-    """
     if insight_type:
         rows = query_db("""
             SELECT insight_date, insight_type, content
@@ -154,10 +196,6 @@ async def get_insights(insight_type: str = None):
 # POST /query
 @app.post('/query')
 async def query_rag(request: QueryRequest):
-    """
-    Natural language query interface using RAG pipeline.
-    Retrieves relevant documents from ChromaDB and generates answer via Ollama.
-    """
     try:
         from src.llm.rag import get_collection, rag_query
         collection = get_collection()

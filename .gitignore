@@ -225,3 +225,7 @@ internship-new-project-docs/
 
 # Project docs
 folder_structure.txt
+
+# Model weights
+*.pth
+*.pt
