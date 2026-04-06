@@ -504,13 +504,14 @@ async def regenerate_forecast():
 
         # Baseline: rolling mean of last 30 data points
         baseline = float(np.mean(counts[-min(30, n):]))
+        floor    = baseline * 0.3   # never predict below 30% of baseline
 
         # Linear trend from last 14 points (damped)
         tail = min(14, n)
         slope = float(np.polyfit(np.arange(tail), counts[-tail:], 1)[0]) if tail >= 2 else 0.0
 
         for i, fd in enumerate(forecast_dates, 1):
-            predicted = max(0.0, baseline + slope * i * 0.5)
+            predicted = max(floor, baseline + slope * i * 0.5)
             execute_db("""
                 INSERT INTO forecast_results
                     (forecast_date, class_name, predicted_count, model_name)
