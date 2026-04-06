@@ -10,7 +10,8 @@ def ollama_generate(prompt, model=OLLAMA_MODEL, max_tokens=300):
     response = requests.post(
         f'{OLLAMA_URL}/api/generate',
         json={'model': model, 'prompt': prompt,
-              'stream': False, 'options': {'num_predict': max_tokens}}
+              'stream': False, 'options': {'num_predict': max_tokens}},
+        timeout=60,
     )
     return response.json()['response']
 

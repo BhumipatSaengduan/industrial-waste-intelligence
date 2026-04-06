@@ -28,3 +28,9 @@ def query_db(sql, params=None):
         cols = [desc[0] for desc in cur.description]
         rows = cur.fetchall()
         return [dict(zip(cols, row)) for row in rows]
+
+def execute_db(sql, params=None):
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(sql, params)
+        conn.commit()
