@@ -229,3 +229,5 @@ folder_structure.txt
 # Model weights
 *.pth
 *.pt
+
+echo ".claude/"
