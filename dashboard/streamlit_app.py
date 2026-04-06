@@ -28,7 +28,7 @@ CLASS_COLORS = {
     "Wood":            "#8E5A2B",
 }
 
-FORECAST_CLASSES = ["Plastic", "Paper-Cardboard", "Mixed Waste", "Wood"]
+FORECAST_CLASSES = ["Plastic", "Paper-Cardboard", "Mixed Waste", "Wood", "Metal"]
 
 PAGES = [
     "Dashboard",
@@ -1067,7 +1067,6 @@ def render_forecast():
         options=FORECAST_CLASSES,
         default=FORECAST_CLASSES,
     )
-    st.caption("Note: Metal is excluded from forecasting (insufficient historical variance).")
 
     with st.spinner("Loading data…"):
         _all_forecast = fetch_forecast(class_name=None)

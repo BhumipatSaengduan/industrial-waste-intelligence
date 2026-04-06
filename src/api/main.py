@@ -477,7 +477,7 @@ async def regenerate_forecast():
     import pandas as pd
     from datetime import date, timedelta
 
-    FORECAST_CLASSES_LOCAL = ['Plastic', 'Paper-Cardboard', 'Mixed Waste', 'Wood']
+    FORECAST_CLASSES_LOCAL = ['Plastic', 'Paper-Cardboard', 'Mixed Waste', 'Wood', 'Metal']
 
     rows = query_db("""
         SELECT date, class_name, annotation_count
