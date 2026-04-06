@@ -230,4 +230,4 @@ folder_structure.txt
 *.pth
 *.pt
 
-echo ".claude/"
+.claude/
