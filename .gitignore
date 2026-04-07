@@ -231,3 +231,6 @@ folder_structure.txt
 *.pt
 
 .claude/
+
+# Misc
+mailmap.txt
