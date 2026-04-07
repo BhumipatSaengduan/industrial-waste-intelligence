@@ -5,6 +5,8 @@ import os
 import tempfile
 import base64
 import cv2
+import threading
+import time
 
 from .models import (
     HealthResponse, CompositionResponse,
@@ -25,6 +27,54 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*']
 )
+
+# ---------------------------------------------------------------------------
+# Background scheduler — auto-generate AI Insights reports
+# Daily report  : every day at 18:00
+# Weekly report : every Monday at 18:00
+# ---------------------------------------------------------------------------
+def _run_insights_job(report_type: str):
+    """Call the insights generation logic directly (no HTTP round-trip)."""
+    import requests
+    try:
+        requests.post(
+            f'http://localhost:8000/insights/generate',
+            params={'report_type': report_type, 'force': False},
+            timeout=120
+        )
+        print(f'[scheduler] {report_type} generated at {datetime.now().strftime("%Y-%m-%d %H:%M")}')
+    except Exception as e:
+        print(f'[scheduler] {report_type} failed: {e}')
+
+
+def _scheduler_loop():
+    triggered_daily  = None   # tracks date string of last daily trigger
+    triggered_weekly = None   # tracks ISO week string of last weekly trigger
+
+    while True:
+        now = datetime.now()
+        today_str = now.strftime('%Y-%m-%d')
+        week_str  = now.strftime('%Y-W%W')   # e.g. "2026-W14"
+
+        if now.hour == 18 and now.minute == 0:
+            # Daily report — once per day
+            if triggered_daily != today_str:
+                triggered_daily = today_str
+                threading.Thread(target=_run_insights_job, args=('daily_report',), daemon=True).start()
+
+            # Weekly report — Monday only
+            if now.weekday() == 0 and triggered_weekly != week_str:
+                triggered_weekly = week_str
+                threading.Thread(target=_run_insights_job, args=('weekly_report',), daemon=True).start()
+
+        time.sleep(60)   # check every minute
+
+
+@app.on_event('startup')
+def start_scheduler():
+    t = threading.Thread(target=_scheduler_loop, daemon=True)
+    t.start()
+    print('[scheduler] Background insight scheduler started')
 
 # Ensure analysis_records table exists
 try:

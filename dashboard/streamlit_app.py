@@ -1222,31 +1222,6 @@ def render_ai_insights():
     st.title("AI Insights")
     st.caption("LLM-generated operational reports — auto-updates daily at 18:00")
 
-    # ── Auto-generate logic ───────────────────────────────────────────────────
-    from datetime import datetime as _dt
-    _now        = _dt.now()
-    _today      = _now.date().isoformat()
-    _weekday    = _now.weekday()           # 0=Monday … 6=Sunday
-    _week_label = _now.strftime("%Y-W%W")  # unique per calendar week
-
-    # Daily report: auto-generate at 18:00 every day
-    _daily_key = f"auto_daily_{_today}"
-    if _now.hour >= 18 and _daily_key not in st.session_state:
-        st.session_state[_daily_key] = True
-        _ok, _resp = call_generate_insights("daily_report", force=False)
-        if _ok and isinstance(_resp, dict) and _resp.get("status") == "generated":
-            st.cache_data.clear()
-            st.rerun()
-
-    # Weekly report: auto-generate every Monday (looks back at previous 7 days)
-    _weekly_key = f"auto_weekly_{_week_label}"
-    if _weekday == 0 and _weekly_key not in st.session_state:
-        st.session_state[_weekly_key] = True
-        _ok_w, _resp_w = call_generate_insights("weekly_report", force=False)
-        if _ok_w and isinstance(_resp_w, dict) and _resp_w.get("status") == "generated":
-            st.cache_data.clear()
-            st.rerun()
-
     # ── Controls row ─────────────────────────────────────────────────────────
     col_filter, col_daily, col_weekly, col_refresh = st.columns([2, 1.1, 1.1, 0.7])
     with col_filter:
@@ -1284,14 +1259,7 @@ def render_ai_insights():
             st.rerun()
 
     # ── Schedule info banner ──────────────────────────────────────────────────
-    day_names = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
-    if _now.hour >= 18:
-        st.caption(f"🕕 Daily auto-generated at 18:00 · 📅 Weekly auto-generated every Monday")
-    else:
-        st.caption(
-            f"⏰ Next daily report: 18:00 today  ·  "
-            f"📅 Next weekly report: {'today (Monday)' if _weekday == 0 else 'Monday'}"
-        )
+    st.caption("🕕 Daily report auto-generated at 18:00 · 📅 Weekly report auto-generated every Monday · Powered by FastAPI scheduler")
 
     selected_type = None if insight_type_filter == "All" else insight_type_filter
 
