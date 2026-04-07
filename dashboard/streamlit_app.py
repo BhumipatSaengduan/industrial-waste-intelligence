@@ -305,7 +305,7 @@ def call_delete_all():
 
 def call_regenerate_forecast():
     try:
-        r = requests.post(f"{API_BASE}/forecast/regenerate", timeout=30)
+        r = requests.post(f"{API_BASE}/forecast/regenerate", timeout=120)
         r.raise_for_status()
         return True, r.json()
     except requests.exceptions.HTTPError as e:
