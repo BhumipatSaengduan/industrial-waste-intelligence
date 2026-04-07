@@ -56,16 +56,15 @@ def _scheduler_loop():
         today_str = now.strftime('%Y-%m-%d')
         week_str  = now.strftime('%Y-W%W')   # e.g. "2026-W14"
 
-        if now.hour == 18 and now.minute == 0:
-            # Daily report — once per day
-            if triggered_daily != today_str:
-                triggered_daily = today_str
-                threading.Thread(target=_run_insights_job, args=('daily_report',), daemon=True).start()
+        # Daily report — every day at 18:00
+        if now.hour == 18 and now.minute == 0 and triggered_daily != today_str:
+            triggered_daily = today_str
+            threading.Thread(target=_run_insights_job, args=('daily_report',), daemon=True).start()
 
-            # Weekly report — Monday only
-            if now.weekday() == 0 and triggered_weekly != week_str:
-                triggered_weekly = week_str
-                threading.Thread(target=_run_insights_job, args=('weekly_report',), daemon=True).start()
+        # Weekly report — Monday at 00:00 (covers previous Mon–Sun)
+        if now.weekday() == 0 and now.hour == 0 and now.minute == 0 and triggered_weekly != week_str:
+            triggered_weekly = week_str
+            threading.Thread(target=_run_insights_job, args=('weekly_report',), daemon=True).start()
 
         time.sleep(60)   # check every minute
 

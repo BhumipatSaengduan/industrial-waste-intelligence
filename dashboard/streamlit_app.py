@@ -1259,7 +1259,7 @@ def render_ai_insights():
             st.rerun()
 
     # ── Schedule info banner ──────────────────────────────────────────────────
-    st.caption("🕕 Daily report auto-generated at 18:00 · 📅 Weekly report auto-generated every Monday · Powered by FastAPI scheduler")
+    st.caption("🕕 Daily report auto-generated at 18:00 · 📅 Weekly report auto-generated every Monday 00:00 (covers Mon–Sun) · Powered by FastAPI scheduler")
 
     selected_type = None if insight_type_filter == "All" else insight_type_filter
 
