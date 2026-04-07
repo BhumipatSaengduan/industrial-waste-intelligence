@@ -921,18 +921,9 @@ def render_analysis_records():
 
     df = pd.DataFrame(data)
     import datetime as _dt_mod
+    _local_offset = _dt_mod.datetime.now().astimezone().utcoffset()
     df["analysis_date"] = pd.to_datetime(df["analysis_date"]).dt.date
-    df["analyzed_at"]   = (
-        pd.to_datetime(df["analyzed_at"])
-          .dt.tz_localize("UTC")          # mark as UTC
-          .dt.tz_convert(None)            # → keep naive but in local tz via below
-    )
-    # convert UTC → local system timezone
-    _utc = _dt_mod.timezone.utc
-    df["analyzed_at"] = df["analyzed_at"].apply(
-        lambda x: x.replace(tzinfo=_utc).astimezone().replace(tzinfo=None)
-        if pd.notna(x) else x
-    )
+    df["analyzed_at"]   = pd.to_datetime(df["analyzed_at"]) + _local_offset
 
     # Rename columns for display
     display_df = df[[
