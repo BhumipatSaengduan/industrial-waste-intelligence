@@ -651,8 +651,12 @@ def render_dashboard():
         if latest_records:
             latest = latest_records[0]
             try:
+                import datetime as _datetime
                 dt = pd.to_datetime(latest.get("analyzed_at", ""))
-                latest_display = dt.strftime("%Y-%m-%d %H:%M")
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=_datetime.timezone.utc)
+                dt_local = dt.astimezone()          # convert UTC → local system timezone
+                latest_display = dt_local.strftime("%Y-%m-%d %H:%M")
             except Exception:
                 latest_display = str(latest.get("analyzed_at", "—"))[:16]
             latest_file = latest.get("filename", "")
@@ -916,8 +920,19 @@ def render_analysis_records():
     st.metric("Total Records", len(data))
 
     df = pd.DataFrame(data)
+    import datetime as _dt_mod
     df["analysis_date"] = pd.to_datetime(df["analysis_date"]).dt.date
-    df["analyzed_at"]   = pd.to_datetime(df["analyzed_at"])
+    df["analyzed_at"]   = (
+        pd.to_datetime(df["analyzed_at"])
+          .dt.tz_localize("UTC")          # mark as UTC
+          .dt.tz_convert(None)            # → keep naive but in local tz via below
+    )
+    # convert UTC → local system timezone
+    _utc = _dt_mod.timezone.utc
+    df["analyzed_at"] = df["analyzed_at"].apply(
+        lambda x: x.replace(tzinfo=_utc).astimezone().replace(tzinfo=None)
+        if pd.notna(x) else x
+    )
 
     # Rename columns for display
     display_df = df[[
