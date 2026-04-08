@@ -1356,35 +1356,103 @@ def render_ai_insights():
 _PLATFORM_GUIDE = """
 ## 📋 Platform Guide — Industrial Waste Intelligence
 
-| Page | Description |
-|------|-------------|
-| **Dashboard** | Overview: API status, 30-day waste trend chart, system summary (anomaly count, insight count) |
-| **Image Analysis** | Upload JPG/PNG images → AI segmentation (Mask R-CNN) → waste composition % per class |
-| **Analysis Records** | Browse per-image results, filter by date range, export CSV, undo/delete saved records |
-| **Trend Analysis** | Line chart of historical daily composition %; filter by class and date range |
-| **Forecast** | ML-predicted composition for next 30 days; compares with today's actual uploads |
-| **Anomaly Detection** | Identifies days with unusual waste composition using Isolation Forest |
-| **AI Insights** | LLM-generated daily and weekly operational reports; auto-generates at 18:00 |
-| **Ask AI** | This page — ask questions in English or Thai; queries live database + knowledge base |
+This is an AI-powered platform for analyzing waste composition at an industrial incineration facility.
+It uses a Mask R-CNN computer vision model to detect and classify waste in uploaded images.
 
-**5 waste classes:** Metal · Mixed Waste · Paper-Cardboard · Plastic · Wood
+---
 
-**Workflow:** Upload images → Save to Records → View in Trend Analysis → Generate Insights
+### Pages
+
+**🏠 Dashboard**
+The home page. Shows:
+- API and model connection status
+- 30-day waste composition trend chart (line chart per class)
+- System summary: dominant waste class (last 30 days), last upload date/time, anomaly count, AI insights count
+
+**🔬 Image Analysis**
+Upload JPG/PNG photos of waste → the AI model (Mask R-CNN) segments the image and returns:
+- Composition % for each of the 5 waste classes
+- Annotated image with color-coded masks
+- Save button to store the result in the database
+
+**📋 Analysis Records**
+A table of all saved image analyses. Features:
+- Filter by date range
+- Export as CSV
+- Delete last record or delete all records
+- Shows filename, date, analyzed time (local timezone), and % per class
+
+**📈 Trend Analysis**
+Line chart showing how waste composition has changed over time (day by day).
+- Filter by waste class and date range
+- Based on aggregated daily data from saved records
+
+**🔮 ML Forecast**
+Machine learning predictions for the next 30 days of waste composition.
+- Uses trend extrapolation (linear regression on last 14 days of history)
+- Shows predicted count per waste class for each future date
+- Click "🔄 Generate Fresh Forecast" to recalculate from latest data
+- Covers all 5 waste classes including Metal
+
+**⚠️ Anomaly Detection**
+Detects days with unusual or unexpected waste composition using Isolation Forest (unsupervised ML).
+- Anomaly score: more negative = more anomalous
+- Shows date, score, and explanation for each anomalous day
+- Click "🔍 Run Anomaly Detection" to refresh
+
+**💡 AI Insights**
+Auto-generated operational reports written by an LLM (Ollama llama3.2:3b):
+- **Daily Report**: generated automatically every day at 18:00 — summarizes that day's waste composition, anomalies, and gives one operational recommendation
+- **Weekly Report**: generated every Monday at 00:00 — covers the full previous Monday–Sunday
+- Manual buttons: "📊 Generate Daily" and "📅 Generate Weekly" to trigger on demand
+- Each report has 3 sections: TREND / ANOMALY / ACTION
+
+**💬 Ask AI (this page)**
+Chat with the AI about the platform or live data.
+- Platform questions (what is X, how does X work) → answered from the built-in guide instantly
+- Data questions (how much Metal today, any anomalies?) → queries live database + RAG knowledge base
+
+---
+
+### 5 Waste Classes
+| Class | Color |
+|---|---|
+| Metal | Gray |
+| Mixed Waste | Orange |
+| Paper-Cardboard | Yellow |
+| Plastic | Blue |
+| Wood | Brown |
+
+### Recommended Workflow
+1. Upload images on **Image Analysis** → Save
+2. View composition history on **Trend Analysis**
+3. Generate forecast on **ML Forecast**
+4. Check **Anomaly Detection** for unusual days
+5. Read auto-generated reports on **AI Insights**
 """
 
 _HELP_TRIGGERS = [
-    "how to use", "how do i use", "how does this work", "how does it work",
-    "what is this", "what does this", "what can i", "what are the pages",
-    "explain the", "describe the", "tell me about",
-    "dashboard page", "image analysis page", "records page", "trend analysis page",
-    "forecast page", "anomaly page", "insights page", "ask ai page",
-    "คืออะไร", "ใช้ยังไง", "อธิบาย", "แต่ละหน้า", "วิธีใช้", "platform guide",
-    "help me understand", "guide",
+    # English — what is / what are
+    "what is", "what are", "what does", "what can",
+    # English — how
+    "how to", "how do i", "how does", "how is",
+    # English — explain / describe / tell
+    "explain", "describe", "tell me about", "help me understand",
+    # English — page names
+    "dashboard", "image analysis", "analysis records", "trend analysis",
+    "ml forecast", "forecast page", "anomaly detection", "ai insights", "ask ai",
+    # English — features
+    "platform guide", "workflow", "waste class", "guide",
+    # Thai
+    "คืออะไร", "ทำอะไร", "ใช้ยังไง", "อธิบาย", "แต่ละหน้า",
+    "วิธีใช้", "หน้า", "ฟีเจอร์",
 ]
 _DATA_OVERRIDES = [
-    "how much", "how many", "percent", "%", "today", "yesterday",
-    "last week", "last month", "metal", "plastic", "wood", "mixed", "paper",
-    "anomal", "forecast", "trend", "วันนี้", "เมื่อวาน", "สัปดาห์",
+    # Only block if asking for actual numbers/current data
+    "how much", "how many", "percent", "%",
+    "today", "yesterday", "last week", "last month",
+    "this week", "right now", "currently",
+    "วันนี้", "เมื่อวาน", "สัปดาห์นี้", "เดือนนี้",
 ]
 
 
