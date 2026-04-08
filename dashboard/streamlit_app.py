@@ -270,7 +270,8 @@ def call_query(question):
 def call_save_record(result):
     """Save an /analyze result to the database via POST /records/save."""
     import datetime as _dt
-    local_date = _dt.datetime.now().astimezone().date().isoformat()  # local date, not UTC
+    _JST = _dt.timezone(_dt.timedelta(hours=9))
+    local_date = _dt.datetime.now(_JST).date().isoformat()  # JST date (UTC+9)
     try:
         r = requests.post(
             f"{API_BASE}/records/save",
@@ -658,7 +659,8 @@ def render_dashboard():
                 dt = pd.to_datetime(latest.get("analyzed_at", ""))
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=_datetime.timezone.utc)
-                dt_local = dt.astimezone()          # convert UTC → local system timezone
+                _JST = _datetime.timezone(_datetime.timedelta(hours=9))
+                dt_local = dt.astimezone(_JST)      # convert UTC → JST (UTC+9)
                 latest_display = dt_local.strftime("%Y-%m-%d %H:%M")
             except Exception:
                 latest_display = str(latest.get("analyzed_at", "—"))[:16]
@@ -924,9 +926,9 @@ def render_analysis_records():
 
     df = pd.DataFrame(data)
     import datetime as _dt_mod
-    _local_offset = _dt_mod.datetime.now().astimezone().utcoffset()
+    _JST_OFFSET = _dt_mod.timedelta(hours=9)   # UTC+9 (Japan Standard Time)
     df["analysis_date"] = pd.to_datetime(df["analysis_date"]).dt.date
-    df["analyzed_at"]   = pd.to_datetime(df["analyzed_at"]) + _local_offset
+    df["analyzed_at"]   = pd.to_datetime(df["analyzed_at"]) + _JST_OFFSET
 
     # Rename columns for display
     display_df = df[[
