@@ -343,14 +343,18 @@ def _sync_daily_summary(date_str: str):
 async def save_record(payload: dict):
     """Save a dashboard analysis result and sync daily_waste_summary."""
     comp = payload.get('composition', {})
+    from datetime import date as _date
+    # Use client-provided local date (avoids UTC vs local timezone mismatch)
+    analysis_date = payload.get('analysis_date') or str(_date.today())
     try:
         execute_db("""
             INSERT INTO analysis_records
                 (filename, analysis_date, metal_pct, mixed_waste_pct,
                  paper_cardboard_pct, plastic_pct, wood_pct, total_area_detected)
-            VALUES (%s, CURRENT_DATE, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             payload.get('filename', 'unknown'),
+            analysis_date,
             comp.get('Metal', 0),
             comp.get('Mixed Waste', 0),
             comp.get('Paper-Cardboard', 0),
@@ -358,8 +362,7 @@ async def save_record(payload: dict):
             comp.get('Wood', 0),
             payload.get('total_area_detected', 0),
         ))
-        from datetime import date as _date
-        _sync_daily_summary(str(_date.today()))
+        _sync_daily_summary(analysis_date)
         return {'status': 'saved', 'daily_summary_updated': True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

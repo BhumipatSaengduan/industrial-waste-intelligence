@@ -269,6 +269,8 @@ def call_query(question):
 
 def call_save_record(result):
     """Save an /analyze result to the database via POST /records/save."""
+    import datetime as _dt
+    local_date = _dt.datetime.now().astimezone().date().isoformat()  # local date, not UTC
     try:
         r = requests.post(
             f"{API_BASE}/records/save",
@@ -276,6 +278,7 @@ def call_save_record(result):
                 "filename":            result.get("filename"),
                 "composition":         result.get("composition", {}),
                 "total_area_detected": result.get("total_area_detected", 0),
+                "analysis_date":       local_date,
             },
             timeout=10,
         )
