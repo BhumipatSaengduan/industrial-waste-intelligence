@@ -1,0 +1,14 @@
+venv/
+.env
+.claude/
+__pycache__/
+*.pyc
+mlruns/
+data/raw/
+data/chromadb/
+*.jpg
+*.jpeg
+*.png
+*.zip
+notebooks/
+docs/

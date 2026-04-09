@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import base64
 import hashlib
+import os
 from io import BytesIO
 from PIL import Image
 
@@ -16,7 +17,7 @@ st.set_page_config(
 )
 
 # ── Constants ─────────────────────────────────────────────────────────────────
-API_BASE = "http://127.0.0.1:8001"
+API_BASE = os.getenv("API_BASE", "http://127.0.0.1:8001")
 
 WASTE_CLASSES = ["Metal", "Mixed Waste", "Paper-Cardboard", "Plastic", "Wood"]
 

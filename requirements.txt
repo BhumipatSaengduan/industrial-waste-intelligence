@@ -23,10 +23,9 @@ mlflow==3.10.1
 # ── Computer Vision ───────────────────────────────────────────────────────────
 opencv-python-headless==4.10.0.84
 Pillow==12.1.1
-# PyTorch (CUDA 12.4) — install separately:
-# pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu124
-torch==2.6.0+cu124
-torchvision==0.21.0+cu124
+# PyTorch — installed separately (CUDA on local, CPU in Docker):
+# Local:  pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu124
+# Docker: installed via Dockerfile with CPU build
 
 # ── LLM / RAG ─────────────────────────────────────────────────────────────────
 chromadb==1.5.5
