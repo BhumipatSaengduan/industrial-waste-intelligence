@@ -438,6 +438,31 @@ async def delete_all_records():
     return {'status': 'deleted_all', 'dates_cleaned': len(all_dates)}
 
 
+# DELETE /insights/one — delete a specific insight by date + type
+@app.delete('/insights/one')
+async def delete_one_insight(insight_date: str, insight_type: str):
+    rows = query_db(
+        "SELECT id FROM llm_insights WHERE insight_date = %s AND insight_type = %s LIMIT 1",
+        (insight_date, insight_type)
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail='Insight not found')
+    execute_db(
+        "DELETE FROM llm_insights WHERE insight_date = %s AND insight_type = %s",
+        (insight_date, insight_type)
+    )
+    return {'status': 'deleted', 'date': insight_date, 'type': insight_type}
+
+
+# DELETE /insights/all — clear all insight reports
+@app.delete('/insights/all')
+async def delete_all_insights():
+    rows = query_db("SELECT COUNT(*) as n FROM llm_insights")
+    count = rows[0]['n'] if rows else 0
+    execute_db("DELETE FROM llm_insights")
+    return {'status': 'deleted_all', 'count': count}
+
+
 # GET /records
 @app.get('/records')
 async def get_records(

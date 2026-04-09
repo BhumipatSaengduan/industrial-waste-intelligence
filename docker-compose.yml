@@ -20,6 +20,7 @@ services:
       - OLLAMA_URL=http://ollama:11434
     volumes:
       - ./models:/app/models
+      - chroma_cache:/root/.cache/chroma
     depends_on:
       - ollama
     restart: unless-stopped
@@ -39,3 +40,4 @@ services:
 
 volumes:
   ollama_data:
+  chroma_cache:

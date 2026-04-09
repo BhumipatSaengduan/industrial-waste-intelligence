@@ -260,7 +260,7 @@ def call_query(question):
         r = requests.post(
             f"{API_BASE}/query",
             json={"question": question},
-            timeout=60,
+            timeout=180,
         )
         r.raise_for_status()
         return r.json()
@@ -302,6 +302,26 @@ def call_delete_last():
 def call_delete_all():
     try:
         r = requests.delete(f"{API_BASE}/records/all", timeout=10)
+        r.raise_for_status()
+        return True, r.json()
+    except requests.exceptions.RequestException as e:
+        return False, str(e)
+
+
+def call_delete_one_insight(insight_date, insight_type):
+    try:
+        r = requests.delete(f"{API_BASE}/insights/one",
+                            params={"insight_date": insight_date, "insight_type": insight_type},
+                            timeout=10)
+        r.raise_for_status()
+        return True, r.json()
+    except requests.exceptions.RequestException as e:
+        return False, str(e)
+
+
+def call_delete_all_insights():
+    try:
+        r = requests.delete(f"{API_BASE}/insights/all", timeout=10)
         r.raise_for_status()
         return True, r.json()
     except requests.exceptions.RequestException as e:
@@ -865,15 +885,27 @@ def render_analysis_records():
 
     # ── Undo last save ────────────────────────────────────────────────────────
     with col_undo:
-        if st.button("↩ Undo Last Save", use_container_width=True):
-            st.session_state["confirm_delete_all"] = False
-            ok, resp = call_delete_last()
-            if ok:
-                st.cache_data.clear()
-                st.success(f"Deleted record saved on {resp.get('date', '')}.", icon="✅")
+        if not st.session_state.get("confirm_undo"):
+            if st.button("↩ Undo Last Save", use_container_width=True):
+                st.session_state["confirm_undo"] = True
                 st.rerun()
-            else:
-                st.error(f"Failed: {resp}")
+        else:
+            st.warning("Delete the last saved record?")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("Yes, undo", type="primary", use_container_width=True):
+                    ok, resp = call_delete_last()
+                    st.session_state["confirm_undo"] = False
+                    if ok:
+                        st.cache_data.clear()
+                        st.success(f"Deleted record saved on {resp.get('date', '')}.", icon="✅")
+                        st.rerun()
+                    else:
+                        st.error(f"Failed: {resp}")
+            with c2:
+                if st.button("Cancel", use_container_width=True, key="cancel_undo"):
+                    st.session_state["confirm_undo"] = False
+                    st.rerun()
 
     # ── Delete all ────────────────────────────────────────────────────────────
     with col_del:
@@ -902,16 +934,11 @@ def render_analysis_records():
     st.markdown("---")
 
     # ── Date range filter ─────────────────────────────────────────────────────
-    col_from, col_to, col_btn = st.columns([2, 2, 1])
+    col_from, col_to = st.columns([2, 2])
     with col_from:
         date_from = st.date_input("From", value=None, key="rec_from")
     with col_to:
         date_to = st.date_input("To", value=None, key="rec_to")
-    with col_btn:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Clear filter", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
 
     with st.spinner("Loading records…"):
         data = fetch_records(
@@ -981,7 +1008,7 @@ def render_trend_analysis():
     st.caption("Historical waste annotation trends from the database")
 
     # ── Filters ───────────────────────────────────────────────────────────────
-    col_cls, col_from, col_to, col_refresh, col_reset = st.columns([3, 1.5, 1.5, 0.8, 0.8])
+    col_cls, col_from, col_to = st.columns([3, 1.5, 1.5])
     with col_cls:
         selected = st.multiselect(
             "Filter by waste class",
@@ -994,16 +1021,6 @@ def render_trend_analysis():
         date_from = st.date_input("From", value=default_from, key="trend_from")
     with col_to:
         date_to = st.date_input("To", value=today_trend, key="trend_to")
-    with col_refresh:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Refresh", type="primary", use_container_width=True, key="trend_refresh"):
-            st.cache_data.clear()
-            st.rerun()
-    with col_reset:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Reset", use_container_width=True, key="trend_reset"):
-            st.cache_data.clear()
-            st.rerun()
 
     with st.spinner("Loading trend data…"):
         data = fetch_trend(date_from=date_from, date_to=date_to)
@@ -1052,6 +1069,13 @@ def render_forecast():
     st.title("Forecast")
     st.caption("30-day ahead waste composition predictions")
 
+    if "forecast_msg" in st.session_state:
+        mtype, mtext = st.session_state.pop("forecast_msg")
+        if mtype == "success":
+            st.success(mtext, icon="✅")
+        else:
+            st.error(mtext)
+
     # ── Generate / refresh controls ───────────────────────────────────────────
     col_gen, col_info = st.columns([1, 3])
     with col_gen:
@@ -1059,12 +1083,13 @@ def render_forecast():
             with st.spinner("Computing 30-day forecast from latest data…"):
                 ok, resp = call_regenerate_forecast()
             if ok:
-                st.cache_data.clear()
                 n = resp.get("forecasts_created", 0)
-                st.success(f"Generated {n} forecast entries for the next 30 days!", icon="✅")
+                st.session_state["forecast_msg"] = ("success", f"Generated {n} forecast entries for the next 30 days!")
+                st.cache_data.clear()
                 st.rerun()
             else:
-                st.error(f"Failed: {resp}")
+                st.session_state["forecast_msg"] = ("error", f"Failed: {resp}")
+                st.rerun()
     with col_info:
         st.info(
             "Click **Generate Fresh Forecast** to create 30-day predictions using your uploaded data. "
@@ -1241,6 +1266,13 @@ def render_ai_insights():
     st.title("AI Insights")
     st.caption("LLM-generated operational reports — auto-updates daily at 18:00")
 
+    if "insight_del_msg" in st.session_state:
+        mtype, mtext = st.session_state.pop("insight_del_msg")
+        if mtype == "success":
+            st.success(mtext)
+        else:
+            st.error(mtext)
+
     # ── Controls row ─────────────────────────────────────────────────────────
     col_filter, col_daily, col_weekly, col_refresh = st.columns([2, 1.1, 1.1, 0.7])
     with col_filter:
@@ -1292,7 +1324,30 @@ def render_ai_insights():
         )
         return
 
-    st.markdown(f"Showing **{len(data)}** insight(s)")
+    col_count, col_delall = st.columns([3, 1])
+    with col_count:
+        st.markdown(f"Showing **{len(data)}** insight(s)")
+    with col_delall:
+        if not st.session_state.get("confirm_delete_all_insights"):
+            if st.button("🗑 Delete All Insights", use_container_width=True):
+                st.session_state["confirm_delete_all_insights"] = True
+                st.rerun()
+        else:
+            st.warning("Delete ALL insights?")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("Yes, delete all", type="primary", use_container_width=True, key="del_all_insights_confirm"):
+                    ok, resp = call_delete_all_insights()
+                    st.session_state["confirm_delete_all_insights"] = False
+                    if ok:
+                        st.cache_data.clear()
+                        st.rerun()
+                    else:
+                        st.error(f"Failed: {resp}")
+            with c2:
+                if st.button("Cancel", use_container_width=True, key="cancel_del_all_insights"):
+                    st.session_state["confirm_delete_all_insights"] = False
+                    st.rerun()
     st.markdown("---")
 
     _BADGE_COLORS = {
@@ -1306,7 +1361,7 @@ def render_ai_insights():
         "anomaly_explanation": "⚠️ Anomaly",
     }
 
-    for item in data:
+    for _idx, item in enumerate(data):
         itype   = item.get("insight_type", "unknown")
         idate   = item.get("insight_date", "")
         content = item.get("content", "")
@@ -1314,12 +1369,38 @@ def render_ai_insights():
         badge_color = _BADGE_COLORS.get(itype, "#888888")
         badge_label = _BADGE_LABELS.get(itype, itype)
 
-        st.markdown(
-            f'<span style="background:{badge_color};color:white;padding:3px 10px;'
-            f'border-radius:4px;font-size:0.8em;font-weight:600">{badge_label}</span>'
-            f'&nbsp;&nbsp;<span style="color:#888;font-size:0.85em">{idate}</span>',
-            unsafe_allow_html=True,
-        )
+        _confirm_key = f"confirm_del_insight_{_idx}_{idate}_{itype}"
+
+        hdr_col, del_col = st.columns([10, 1])
+        with hdr_col:
+            st.markdown(
+                f'<span style="background:{badge_color};color:white;padding:3px 10px;'
+                f'border-radius:4px;font-size:0.8em;font-weight:600">{badge_label}</span>'
+                f'&nbsp;&nbsp;<span style="color:#888;font-size:0.85em">{idate}</span>',
+                unsafe_allow_html=True,
+            )
+        with del_col:
+            if not st.session_state.get(_confirm_key):
+                if st.button("🗑", key=f"del_btn_{_idx}_{idate}_{itype}", help="Delete this insight"):
+                    st.session_state[_confirm_key] = True
+                    st.rerun()
+            else:
+                st.warning("Delete?")
+                cy, cn = st.columns(2)
+                with cy:
+                    if st.button("Yes", key=f"del_yes_{_idx}_{idate}_{itype}", type="primary"):
+                        ok, msg = call_delete_one_insight(idate, itype)
+                        st.session_state.pop(_confirm_key, None)
+                        if ok:
+                            st.session_state["insight_del_msg"] = ("success", f"Deleted {badge_label} — {idate}")
+                        else:
+                            st.session_state["insight_del_msg"] = ("error", msg)
+                        st.cache_data.clear()
+                        st.rerun()
+                with cn:
+                    if st.button("No", key=f"del_no_{_idx}_{idate}_{itype}"):
+                        st.session_state.pop(_confirm_key, None)
+                        st.rerun()
 
         # Daily & weekly reports: parse TREND / ANOMALY / ACTION sections
         if itype in ("daily_report", "weekly_report") and any(
@@ -1464,6 +1545,8 @@ _DATA_OVERRIDES = [
     # Only block if asking for actual numbers/current data
     "how much", "how many", "percent", "%",
     "today", "yesterday", "last week", "last month",
+    "past", "most common", "dominant", "overall", "this week", "this month",
+    "waste type", "anomaly", "trend", "forecast", "count", "total",
     "this week", "right now", "currently",
     "วันนี้", "เมื่อวาน", "สัปดาห์นี้", "เดือนนี้",
 ]
