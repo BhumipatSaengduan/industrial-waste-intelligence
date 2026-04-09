@@ -1,6 +1,14 @@
 version: "3.9"
 
 services:
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
   api:
     build:
       context: .
@@ -8,8 +16,12 @@ services:
     ports:
       - "8000:8000"
     env_file: .env
+    environment:
+      - OLLAMA_URL=http://ollama:11434
     volumes:
-      - ./models:/app/models   # mount model weights (ไม่ต้อง bake ใน image)
+      - ./models:/app/models
+    depends_on:
+      - ollama
     restart: unless-stopped
 
   streamlit:
@@ -20,7 +32,10 @@ services:
       - "8501:8501"
     env_file: .env
     environment:
-      - API_BASE=http://api:8000   # ชื่อ service ใน Docker network
+      - API_BASE=http://api:8000
     depends_on:
       - api
     restart: unless-stopped
+
+volumes:
+  ollama_data:

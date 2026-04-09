@@ -1177,12 +1177,19 @@ def render_anomaly_detection():
                 n     = resp.get("anomalies_found", 0)
                 total = resp.get("total_days", 0)
                 if resp.get("status") == "insufficient_data":
-                    st.warning(resp.get("message", "Insufficient data for anomaly detection."))
+                    st.session_state["anomaly_msg"] = ("warning", resp.get("message", "Insufficient data."))
                 else:
-                    st.success(f"Checked {total} days — found {n} anomalous day(s).", icon="✅")
+                    st.session_state["anomaly_msg"] = ("success", f"Checked {total} days — found {n} anomalous day(s).")
                 st.rerun()
             else:
                 st.error(f"Check failed: {resp}")
+
+        if "anomaly_msg" in st.session_state:
+            mtype, mtext = st.session_state.pop("anomaly_msg")
+            if mtype == "success":
+                st.success(mtext, icon="✅")
+            else:
+                st.warning(mtext)
     with col_info:
         st.info(
             "Runs Isolation Forest across all historical data. "

@@ -2,7 +2,8 @@ import pandas as pd
 import requests
 from .prompts import WEEKLY_REPORT_PROMPT, ANOMALY_EXPLANATION_PROMPT
 
-OLLAMA_URL   = 'http://localhost:11434'
+import os
+OLLAMA_URL   = os.getenv('OLLAMA_URL', 'http://localhost:11434')
 OLLAMA_MODEL = 'llama3.2:3b'
 
 def ollama_generate(prompt, model=OLLAMA_MODEL, max_tokens=300):
