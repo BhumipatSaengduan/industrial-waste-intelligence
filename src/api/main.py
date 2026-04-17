@@ -71,32 +71,37 @@ def _scheduler_loop():
 
 @app.on_event('startup')
 def start_scheduler():
-    # Catch-up: if server starts after scheduled time and report is missing, generate now
     def _catchup():
         time.sleep(5)  # wait for DB connection to be ready
-        now = datetime.utcnow()
-        jst_now  = now + __import__('datetime').timedelta(hours=9)
-        today_str = jst_now.strftime('%Y-%m-%d')
+        import datetime as dt
+        jst_now = datetime.utcnow() + dt.timedelta(hours=9)
 
-        # Daily catch-up: any day after 18:00 JST
-        if jst_now.hour >= 18:
+        # Daily catch-up: check last 7 days for any missed reports
+        for days_ago in range(7):
+            check_date = (jst_now - dt.timedelta(days=days_ago)).date()
+            # Skip today if it's before 18:00 (report not due yet)
+            if days_ago == 0 and jst_now.hour < 18:
+                continue
             existing = query_db(
                 "SELECT id FROM llm_insights WHERE insight_type='daily_report' AND insight_date=%s LIMIT 1",
-                (today_str,)
+                (str(check_date),)
             )
             if not existing:
-                print('[scheduler] Catch-up: generating missed daily report')
+                print(f'[scheduler] Catch-up: generating missed daily report for {check_date}')
                 _run_insights_job('daily_report')
+                break  # generate only the most recent missed day
 
-        # Weekly catch-up: Monday only (any time)
-        if jst_now.weekday() == 0:
-            existing = query_db(
-                "SELECT id FROM llm_insights WHERE insight_type='weekly_report' AND insight_date=%s LIMIT 1",
-                (today_str,)
-            )
-            if not existing:
-                print('[scheduler] Catch-up: generating missed weekly report')
-                _run_insights_job('weekly_report')
+        # Weekly catch-up: check current week regardless of what day it is
+        days_since_monday = jst_now.weekday()
+        monday_this_week = (jst_now - dt.timedelta(days=days_since_monday)).date()
+        existing = query_db(
+            "SELECT id FROM llm_insights WHERE insight_type='weekly_report' AND insight_date=%s LIMIT 1",
+            (str(monday_this_week),)
+        )
+        if not existing:
+            print(f'[scheduler] Catch-up: generating missed weekly report for week of {monday_this_week}')
+            _run_insights_job('weekly_report')
+
     threading.Thread(target=_catchup, daemon=True).start()
 
     t = threading.Thread(target=_scheduler_loop, daemon=True)
