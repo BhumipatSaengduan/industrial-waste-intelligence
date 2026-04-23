@@ -73,14 +73,14 @@ def _scheduler_loop():
 def start_scheduler():
     def _catchup():
         time.sleep(5)  # wait for DB connection to be ready
-        import datetime as dt
-        jst_now = datetime.utcnow() + dt.timedelta(hours=9)
+        from datetime import timedelta
+        now = datetime.now()  # uses TZ=Asia/Tokyo from docker-compose → JST
 
         # Daily catch-up: check last 7 days for any missed reports
         for days_ago in range(7):
-            check_date = (jst_now - dt.timedelta(days=days_ago)).date()
+            check_date = (now - timedelta(days=days_ago)).date()
             # Skip today if it's before 18:00 (report not due yet)
-            if days_ago == 0 and jst_now.hour < 18:
+            if days_ago == 0 and now.hour < 18:
                 continue
             existing = query_db(
                 "SELECT id FROM llm_insights WHERE insight_type='daily_report' AND insight_date=%s LIMIT 1",
@@ -92,8 +92,8 @@ def start_scheduler():
                 break  # generate only the most recent missed day
 
         # Weekly catch-up: check current week regardless of what day it is
-        days_since_monday = jst_now.weekday()
-        monday_this_week = (jst_now - dt.timedelta(days=days_since_monday)).date()
+        days_since_monday = now.weekday()
+        monday_this_week = (now - timedelta(days=days_since_monday)).date()
         existing = query_db(
             "SELECT id FROM llm_insights WHERE insight_type='weekly_report' AND insight_date=%s LIMIT 1",
             (str(monday_this_week),)
